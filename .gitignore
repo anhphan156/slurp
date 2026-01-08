@@ -1,1 +1,5 @@
 /subprojects/
+.envrc
+.direnv
+.cache
+result
