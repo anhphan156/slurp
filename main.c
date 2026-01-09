@@ -1,3 +1,5 @@
+#include "cairo/cairo.h"
+#include <stddef.h>
 #define _POSIX_C_SOURCE 200809L
 
 #include <assert.h>
@@ -259,7 +261,7 @@ static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard, 
         void *buffer;
         if ((buffer = mmap(NULL, size - 1, PROT_READ, MAP_PRIVATE, fd, 0)) == MAP_FAILED) {
             fprintf(stderr, "mmap failed\n");
-            exit(EXIT_FAILURE);
+            exit(0);
         }
         seat->xkb_keymap = xkb_keymap_new_from_buffer(seat->state->xkb_context, buffer, size - 1, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
         munmap(buffer, size - 1);
@@ -810,9 +812,7 @@ static bool create_cursors(struct slurp_state *state) {
     return true;
 }
 
-int slurp_main(int argc, char *argv[]) {
-    int status = EXIT_SUCCESS;
-
+char *slurp_main(struct sticker *stickers, size_t stickers_size) {
     struct slurp_state state = {
         .colors =
             {
@@ -828,90 +828,101 @@ int slurp_main(int argc, char *argv[]) {
         .fixed_aspect_ratio = false,
         .aspect_ratio       = 0,
         .font_family        = FONT_FAMILY,
-        .image              = NULL
+        .stickers           = stickers,
+        .stickers_size      = stickers_size
     };
 
-    int   opt;
+    // int   opt;
     char *format       = "%x,%y %wx%h\n";
     bool  output_boxes = false;
-    int   w, h;
-    while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:x:O:")) != -1) {
-        switch (opt) {
-        case 'h':
-            printf("%s", usage);
-            return EXIT_SUCCESS;
-        case 'd':
-            state.display_dimensions = true;
-            break;
-        case 'b':
-            state.colors.background = parse_color(optarg);
-            break;
-        case 'c':
-            state.colors.border = parse_color(optarg);
-            break;
-        case 's':
-            state.colors.selection = parse_color(optarg);
-            break;
-        case 'B':
-            state.colors.choice = parse_color(optarg);
-            break;
-        case 'f':
-            format = optarg;
-            break;
-        case 'F':
-            state.font_family = optarg;
-            break;
-        case 'w': {
-            errno = 0;
-            char *endptr;
-            state.border_weight = strtol(optarg, &endptr, 10);
-            if (*endptr || errno) {
-                fprintf(stderr, "Error: expected numeric argument for -w\n");
-                exit(EXIT_FAILURE);
-            }
-            break;
-        }
-        case 'p':
-            state.single_point = true;
-            break;
-        case 'o':
-            output_boxes = true;
-            break;
-        case 'O':
-            state.image = cairo_image_surface_create_from_png(optarg);
-            break;
-        case 'r':
-            state.restrict_selection = true;
-            break;
-        case 'a':
-            if (sscanf(optarg, "%d:%d", &w, &h) != 2) {
-                fprintf(stderr, "invalid aspect ratio\n");
-                return EXIT_FAILURE;
-            }
-            if (w <= 0 || h <= 0) {
-                fprintf(stderr, "width and height of aspect ratio must be greater than zero\n");
-                return EXIT_FAILURE;
-            }
-            state.fixed_aspect_ratio = true;
-            state.aspect_ratio       = (double)h / w;
-            break;
-        case 'x':
-            state.crosshairs = true;
-            break;
-        default:
-            printf("%s", usage);
-            return EXIT_FAILURE;
-        }
+    // int   w, h;
+
+    state.display_dimensions = true;
+    state.stickers_enabled   = true;
+    for (size_t i = 0; i < state.stickers_size; i += 1) {
+        state.stickers[i].surface = cairo_image_surface_create_from_png(state.stickers[i].path);
     }
+
+    // while ((opt = getopt(argc, argv, "hdSb:c:s:B:w:proa:f:F:x:")) != -1) {
+    //     switch (opt) {
+    //     case 'h':
+    //         printf("%s", usage);
+    //         return EXIT_SUCCESS;
+    //     case 'd':
+    //         state.display_dimensions = true;
+    //         break;
+    //     case 'S':
+    //         state.stickers_enabled = true;
+    //         for (size_t i = 0; i < state.stickers_size; i += 1) {
+    //             state.stickers[i].surface = cairo_image_surface_create_from_png(state.stickers[i].path);
+    //         }
+    //         break;
+    //     case 'b':
+    //         state.colors.background = parse_color(optarg);
+    //         break;
+    //     case 'c':
+    //         state.colors.border = parse_color(optarg);
+    //         break;
+    //     case 's':
+    //         state.colors.selection = parse_color(optarg);
+    //         break;
+    //     case 'B':
+    //         state.colors.choice = parse_color(optarg);
+    //         break;
+    //     case 'f':
+    //         format = optarg;
+    //         break;
+    //     case 'F':
+    //         state.font_family = optarg;
+    //         break;
+    //     case 'w': {
+    //         errno = 0;
+    //         char *endptr;
+    //         state.border_weight = strtol(optarg, &endptr, 10);
+    //         if (*endptr || errno) {
+    //             fprintf(stderr, "Error: expected numeric argument for -w\n");
+    //             exit(0);
+    //         }
+    //         break;
+    //     }
+    //     case 'p':
+    //         state.single_point = true;
+    //         break;
+    //     case 'o':
+    //         output_boxes = true;
+    //         break;
+    //     case 'r':
+    //         state.restrict_selection = true;
+    //         break;
+    //     case 'a':
+    //         if (sscanf(optarg, "%d:%d", &w, &h) != 2) {
+    //             fprintf(stderr, "invalid aspect ratio\n");
+    //             return 0;
+    //         }
+    //         if (w <= 0 || h <= 0) {
+    //             fprintf(stderr, "width and height of aspect ratio must be greater than zero\n");
+    //             return 0;
+    //         }
+    //         state.fixed_aspect_ratio = true;
+    //         state.aspect_ratio       = (double)h / w;
+    //         break;
+    //     case 'x':
+    //         state.crosshairs = true;
+    //         break;
+    //     default:
+    //         printf("%s", usage);
+    //         return 0;
+    //     }
+    // }
 
     if (state.single_point && state.restrict_selection) {
         fprintf(stderr, "-p and -r cannot be used together\n");
-        return EXIT_FAILURE;
+        return 0;
     }
 
     if (!acquire_lock()) {
         // acquire_lock prints an appropriate error message itself
-        return EXIT_FAILURE;
+        return 0;
     }
 
     wl_list_init(&state.boxes);
@@ -922,7 +933,7 @@ int slurp_main(int argc, char *argv[]) {
             struct slurp_box in_box = {0};
             if (sscanf(line, "%d,%d %dx%d %m[^\n]", &in_box.x, &in_box.y, &in_box.width, &in_box.height, &in_box.label) < 4) {
                 fprintf(stderr, "invalid box format: %s\n", line);
-                return EXIT_FAILURE;
+                return 0;
             }
             add_choice_box(&state, &in_box);
             free(in_box.label);
@@ -935,12 +946,12 @@ int slurp_main(int argc, char *argv[]) {
     state.display = wl_display_connect(NULL);
     if (state.display == NULL) {
         fprintf(stderr, "failed to create display\n");
-        return EXIT_FAILURE;
+        return 0;
     }
 
     if ((state.xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS)) == NULL) {
         fprintf(stderr, "xkb_context_new failed\n");
-        return EXIT_FAILURE;
+        return 0;
     }
 
     state.registry = wl_display_get_registry(state.display);
@@ -949,15 +960,15 @@ int slurp_main(int argc, char *argv[]) {
 
     if (state.compositor == NULL) {
         fprintf(stderr, "compositor doesn't support wl_compositor\n");
-        return EXIT_FAILURE;
+        return 0;
     }
     if (state.shm == NULL) {
         fprintf(stderr, "compositor doesn't support wl_shm\n");
-        return EXIT_FAILURE;
+        return 0;
     }
     if (state.layer_shell == NULL) {
         fprintf(stderr, "compositor doesn't support zwlr_layer_shell_v1\n");
-        return EXIT_FAILURE;
+        return 0;
     }
     if (state.xdg_output_manager == NULL) {
         fprintf(stderr, "compositor doesn't support xdg-output. "
@@ -965,7 +976,7 @@ int slurp_main(int argc, char *argv[]) {
     }
     if (wl_list_empty(&state.outputs)) {
         fprintf(stderr, "no wl_output\n");
-        return EXIT_FAILURE;
+        return 0;
     }
 
     struct slurp_output *output;
@@ -995,7 +1006,7 @@ int slurp_main(int argc, char *argv[]) {
     wl_display_roundtrip(state.display);
 
     if (!state.cursor_shape_manager && !create_cursors(&state)) {
-        return EXIT_FAILURE;
+        return 0;
     }
 
     if (output_boxes) {
@@ -1019,7 +1030,6 @@ int slurp_main(int argc, char *argv[]) {
     size_t length;
     if (state.result.width == 0 && state.result.height == 0) {
         fprintf(stderr, "selection cancelled\n");
-        status = EXIT_FAILURE;
     } else {
         FILE *stream = open_memstream(&result_str, &length);
         print_formatted_result(stream, &state, format);
@@ -1058,14 +1068,15 @@ int slurp_main(int argc, char *argv[]) {
         free(box);
     }
 
-    if (state.image) {
-        cairo_surface_destroy(state.image);
+    if (state.stickers) {
+        for (size_t i = 0; i < state.stickers_size; i += 1) {
+            cairo_surface_destroy(state.stickers[i].surface);
+        }
     }
 
     if (result_str) {
-        printf("%s", result_str);
-        free(result_str);
+        return result_str;
     }
 
-    return status;
+    return 0;
 }

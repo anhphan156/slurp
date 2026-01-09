@@ -12,6 +12,7 @@ lib_slurp = static_library(
 		'pool-buffer.c',
 		'render.c',
 		'box.c',
+		'sticker.c',
 		protos_src,
 	],
 	include_directories: 'include',

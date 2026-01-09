@@ -1,10 +1,10 @@
 #include <cairo/cairo.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "pool-buffer.h"
 #include "render.h"
 #include "slurp.h"
+#include "sticker.h"
 
 static void set_source_u32(cairo_t *cairo, uint32_t color) {
     cairo_set_source_rgba(cairo, (color >> (3 * 8) & 0xFF) / 255.0, (color >> (2 * 8) & 0xFF) / 255.0, (color >> (1 * 8) & 0xFF) / 255.0, (color >> (0 * 8) & 0xFF) / 255.0);
@@ -15,19 +15,26 @@ static void draw_rect(cairo_t *cairo, struct slurp_box *box, uint32_t color) {
     cairo_rectangle(cairo, box->x, box->y, box->width, box->height);
 }
 
-static void draw_rect_with_image(cairo_t *cairo, struct slurp_box *box, uint32_t color, cairo_surface_t *image) {
-    set_source_u32(cairo, color);
+static void draw_rect_with_image(cairo_t *cairo, struct slurp_box *box, uint32_t color, struct sticker *sticker) {
+    cairo_save(cairo);
+
     cairo_rectangle(cairo, box->x, box->y, box->width, box->height);
 
-    double w = cairo_image_surface_get_width(image);
-    double h = cairo_image_surface_get_height(image);
+    double sticker_w = cairo_image_surface_get_width(sticker->surface);
+    double sticker_h = cairo_image_surface_get_height(sticker->surface);
+    double x         = 0;
+    double y         = 0;
+    double scaled_w  = 0;
+    double scaled_h  = 0;
 
-    double scaled_w = box->width / w;
-    double scaled_h = scaled_w;
-
-    cairo_translate(cairo, box->x, (box->y + box->height) - scaled_h * h);
+    get_transformation(sticker, sticker_w, sticker_h, box, &x, &y, &scaled_w, &scaled_h);
+    cairo_translate(cairo, x, y);
     cairo_scale(cairo, scaled_w, scaled_h);
-    cairo_set_source_surface(cairo, image, 0, 0);
+
+    cairo_set_source_surface(cairo, sticker->surface, 0, 0);
+    cairo_fill(cairo);
+
+    cairo_restore(cairo);
 }
 
 void render(struct slurp_output *output) {
@@ -74,14 +81,13 @@ void render(struct slurp_output *output) {
         }
         struct slurp_box *sel_box = &current_selection->selection;
 
-        if (state->image) {
-            cairo_save(cairo);
-            draw_rect_with_image(cairo, sel_box, state->colors.selection, state->image);
-            cairo_fill(cairo);
-            cairo_restore(cairo);
-        } else {
-            draw_rect(cairo, sel_box, state->colors.selection);
-            cairo_fill(cairo);
+        draw_rect(cairo, sel_box, state->colors.selection);
+        cairo_fill(cairo);
+
+        if (state->stickers_enabled) {
+            cairo_set_operator(cairo, CAIRO_OPERATOR_OVER);
+            for (size_t i = 0; i < state->stickers_size; i += 1)
+                draw_rect_with_image(cairo, sel_box, state->colors.selection, state->stickers + i);
         }
 
         // Draw border

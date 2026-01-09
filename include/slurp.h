@@ -8,6 +8,7 @@
 #include "box.h"
 #include "cursor-shape-v1-client-protocol.h"
 #include "pool-buffer.h"
+#include "sticker.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-output-unstable-v1-client-protocol.h"
 
@@ -44,8 +45,11 @@ struct slurp_state {
         uint32_t choice;
     } colors;
 
-    const char      *font_family;
-    cairo_surface_t *image;
+    const char *font_family;
+
+    bool            stickers_enabled;
+    struct sticker *stickers;
+    size_t          stickers_size;
 
     uint32_t       border_weight;
     bool           display_dimensions;
